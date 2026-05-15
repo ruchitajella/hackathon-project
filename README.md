@@ -71,7 +71,7 @@ The app opens at `http://localhost:5173`.
 ## Tech Stack & Rationale
 
 | Layer       | Choice                    |          Rationale                                                 |
-|--------------------------------------------------------------------------------------------------------------|
+|-------------|---------------------------|--------------------------------------------------------------------|
 | Runtime     | Node.js + Express         | Minimal boilerplate, fast to set up, large ecosystem               |
 | Database    | SQLite via better-sqlite3 | Zero config, single file, persists across restarts, no separate server|
 | Auth        | JWT (jsonwebtoken)        | Stateless, easy to implement, works well with REST APIs            |
@@ -99,50 +99,116 @@ but JWT with localStorage is simpler and sufficient for a hackathon scope.
 ---
 
 ## Architectural Overview
+
+```text
 Leave-Management-Tool/
 ├── backend/
 │   ├── data/
-│   │   └── leave_management.db        # SQLite database (auto-created on first run)
+│   │   └── leave_management.db
+│   │       # SQLite database (auto-created on first run)
+│   │
 │   ├── src/
-│   │   ├── app.js                     # Express entry point, middleware, route mounting
+│   │   ├── app.js
+│   │   │   # Express entry point, middleware, route mounting
+│   │   │
 │   │   ├── db/
-│   │   │   └── database.js            # DB connection, schema creation, balance init helper
+│   │   │   └── database.js
+│   │   │       # DB connection, schema creation, balance init helper
+│   │   │
 │   │   ├── middleware/
-│   │   │   └── auth.js                # JWT verification, attaches req.user to request
+│   │   │   └── auth.js
+│   │   │       # JWT verification, attaches req.user to request
+│   │   │
 │   │   ├── routes/
-│   │   │   ├── auth.js                # Register, login, /me, /managers, /balances
-│   │   │   ├── leaves.js              # Employee CRUD: submit, list, view, edit, withdraw, cancel
-│   │   │   ├── manager.js             # Manager: team list, approve, reject, team balances
-│   │   │   └── availability.js        # Team availability view with date-range filter
+│   │   │   ├── auth.js
+│   │   │   │   # Register, login, /me, /managers, /balances
+│   │   │   │
+│   │   │   ├── leaves.js
+│   │   │   │   # Employee CRUD:
+│   │   │   │   # submit, list, view, edit, withdraw, cancel
+│   │   │   │
+│   │   │   ├── manager.js
+│   │   │   │   # Manager routes:
+│   │   │   │   # approve, reject, team requests, balances
+│   │   │   │
+│   │   │   └── availability.js
+│   │   │       # Team availability with date-range filtering
+│   │   │
 │   │   └── utils/
-│   │       └── dateUtils.js           # Business day counter, overlap check, future date check
-│   └── .env                           # PORT and JWT_SECRET (not committed to git)
+│   │       └── dateUtils.js
+│   │           # Business day counter, overlap check, future-date validation
+│   │
+│   ├── .env
+│   │   # PORT and JWT_SECRET (not committed to git)
+│   │
+│   └── package.json
+│
 └── frontend/
-└── src/
-├── api/
-│   └── axios.js               # Axios instance with auth token interceptor + 401 handler
-├── context/
-│   └── AuthContext.jsx        # Global auth state, login/logout helpers
-├── components/
-│   ├── Navbar.jsx             # Top nav with role-aware links
-│   ├── PrivateRoute.jsx       # Redirects unauthenticated users to /login
-│   └── StatusBadge.jsx        # Colour-coded pill for Pending/Approved/Rejected/Cancelled
-├── pages/
-│   ├── auth/
-│   │   ├── Login.jsx          # Email + password login form
-│   │   └── Register.jsx       # Registration with role selection and manager dropdown
-│   ├── employee/
-│   │   ├── Dashboard.jsx      # Role-aware: balance cards + recent requests (employee) or quick links (manager)
-│   │   ├── MyLeaves.jsx       # Filterable, sortable, paginated own-request list
-│   │   ├── NewLeave.jsx       # Leave submission form with live business-day count preview
-│   │   └── LeaveDetail.jsx    # Full request detail with edit and cancel actions
-│   ├── manager/
-│   │   ├── TeamLeaves.jsx     # Manager's team list with search, filter, sort, pagination
-│   │   └── LeaveApproval.jsx  # Approve or reject with optional manager note
-│   └── shared/
-│       └── Availability.jsx   # Team availability with preset and custom date-range filters
-└── App.jsx                    # Route definitions, layout wrapper, EmployeeOnlyRoute guard
-
+    ├── src/
+    │   ├── api/
+    │   │   └── axios.js
+    │   │       # Axios instance with auth token interceptor
+    │   │
+    │   ├── context/
+    │   │   └── AuthContext.jsx
+    │   │       # Global auth state, login/logout helpers
+    │   │
+    │   ├── components/
+    │   │   ├── Navbar.jsx
+    │   │   │   # Top navigation with role-aware links
+    │   │   │
+    │   │   ├── PrivateRoute.jsx
+    │   │   │   # Redirects unauthenticated users to /login
+    │   │   │
+    │   │   └── StatusBadge.jsx
+    │   │       # Colour-coded leave status indicator
+    │   │
+    │   ├── pages/
+    │   │   ├── auth/
+    │   │   │   ├── Login.jsx
+    │   │   │   │   # User login page
+    │   │   │   │
+    │   │   │   └── Register.jsx
+    │   │   │       # User registration with role selection
+    │   │   │
+    │   │   ├── employee/
+    │   │   │   ├── Dashboard.jsx
+    │   │   │   │   # Leave balances + recent requests
+    │   │   │   │
+    │   │   │   ├── MyLeaves.jsx
+    │   │   │   │   # Filterable/paginated leave history
+    │   │   │   │
+    │   │   │   ├── NewLeave.jsx
+    │   │   │   │   # Leave submission form
+    │   │   │   │
+    │   │   │   └── LeaveDetail.jsx
+    │   │   │       # Single leave request detail view
+    │   │   │
+    │   │   ├── manager/
+    │   │   │   ├── TeamLeaves.jsx
+    │   │   │   │   # Manager team request dashboard
+    │   │   │   │
+    │   │   │   └── LeaveApproval.jsx
+    │   │   │       # Approve/reject workflow
+    │   │   │
+    │   │   └── shared/
+    │   │       └── Availability.jsx
+    │   │           # Team availability calendar/list
+    │   │
+    │   ├── App.jsx
+    │   │   # Route definitions and layout wrapper
+    │   │
+    │   ├── main.jsx
+    │   │   # React entry point
+    │   │
+    │   └── index.css
+    │       # Tailwind imports and global styles
+    │
+    ├── tailwind.config.js
+    ├── vite.config.js
+    ├── package.json
+    └── index.html
+```
 ### Key design decisions
 
 **Atomic approval with transactions** — Approving a request debits the
