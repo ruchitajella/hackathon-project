@@ -15,6 +15,10 @@ export default function Navbar() {
       <div className="flex items-center gap-6">
         <Link to="/" className="font-bold text-lg tracking-tight">LeaveManager</Link>
 
+        {user?.role === 'employee' && (
+          <Link to="/" className="text-sm hover:text-indigo-200">Dashboard</Link>
+        )}
+
         {/* Only employees see My Leaves */}
         {user?.role === 'employee' && (
           <Link to="/my-leaves" className="text-sm hover:text-indigo-200">My Leaves</Link>

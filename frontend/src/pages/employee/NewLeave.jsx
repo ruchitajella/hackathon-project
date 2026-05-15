@@ -27,6 +27,8 @@ export default function NewLeave() {
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
+  const today = new Date().toISOString().split('T')[0];
+
   const dayCount = form.start_date && form.end_date &&
     new Date(form.end_date) >= new Date(form.start_date)
     ? countBusinessDays(form.start_date, form.end_date)
@@ -35,6 +37,22 @@ export default function NewLeave() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!form.start_date || !form.end_date) {
+      setError('Please select both start and end dates.');
+      return;
+    }
+
+    if (form.start_date < today) {
+      setError('Start date cannot be in the past.');
+      return;
+    }
+
+    if (form.end_date < form.start_date) {
+      setError('End date must be on or after the start date.');
+      return;
+    }
+
     setLoading(true);
     try {
       await api.post('/leaves', form);
@@ -78,16 +96,17 @@ export default function NewLeave() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
               <input
                 type="date" required
+                min={today}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={form.start_date}
-                onChange={e => setForm({ ...form, start_date: e.target.value })}
+                onChange={e => setForm({ ...form, start_date: e.target.value, end_date: form.end_date && e.target.value > form.end_date ? '' : form.end_date })}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
               <input
                 type="date" required
-                min={form.start_date}
+                min={form.start_date || today}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={form.end_date}
                 onChange={e => setForm({ ...form, end_date: e.target.value })}
