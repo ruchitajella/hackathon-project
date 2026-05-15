@@ -12,17 +12,24 @@ export default function Dashboard() {
   const [loading,         setLoading]          = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/auth/balances'),
-      api.get('/leaves?page=1&page_size=5&sort_by=created_at&order=desc'),
-      user.role === 'manager' ? api.get('/manager/requests?status=Pending&page_size=1') : Promise.resolve(null),
-    ]).then(([balRes, leavesRes, managerRes]) => {
-      setBalances(balRes.data.balances);
-      setRecentRequests(leavesRes.data.requests);
-      if (managerRes) setPendingCount(managerRes.data.total);
-    }).finally(() => setLoading(false));
-  }, [user.role]);
+  const requests = [
+    user.role === 'manager'
+      ? api.get('/manager/requests?status=Pending&page_size=1')
+      : api.get('/auth/balances'),
+    user.role === 'employee'
+      ? api.get('/leaves?page=1&page_size=5&sort_by=created_at&order=desc')
+      : Promise.resolve(null),
+  ];
 
+  Promise.all(requests).then(([firstRes, secondRes]) => {
+    if (user.role === 'manager') {
+      setPendingCount(firstRes.data.total);
+    } else {
+      setBalances(firstRes.data.balances);
+      if (secondRes) setRecentRequests(secondRes.data.requests);
+    }
+  }).finally(() => setLoading(false));
+}, [user.role]);
   const balanceColors = {
     Vacation: 'bg-blue-50 border-blue-200 text-blue-700',
     Sick:     'bg-green-50 border-green-200 text-green-700',
@@ -31,40 +38,60 @@ export default function Dashboard() {
   const balanceMax = { Vacation: 20, Sick: 10, Personal: 5 };
 
   if (loading) return <div className="text-gray-400 py-10 text-center">Loading...</div>;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Welcome, {user.name} 👋</h1>
-          <p className="text-gray-500 text-sm mt-1">Here's your leave summary</p>
-        </div>
+  <div className="space-y-6">
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Welcome, {user.name} 👋</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          {user.role === 'manager' ? "Manage your team's leave requests" : "Here's your leave summary"}
+        </p>
+      </div>
+      {user.role === 'employee' && (
         <Link
           to="/my-leaves/new"
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
           + New Leave Request
         </Link>
-      </div>
-
-      {/* Manager badge */}
-      {user.role === 'manager' && pendingCount > 0 && (
-        <Link to="/manager/team-leaves?status=Pending">
-          <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-amber-100">
-            <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingCount}</span>
-            Pending approval{pendingCount > 1 ? 's' : ''} awaiting your decision →
-          </div>
-        </Link>
       )}
+    </div>
 
-      {/* Leave Balances */}
+    {/* Manager: pending approvals badge */}
+    {user.role === 'manager' && pendingCount > 0 && (
+      <Link to="/manager/team-leaves?status=Pending">
+        <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-amber-100">
+          <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingCount}</span>
+          Pending approval{pendingCount > 1 ? 's' : ''} awaiting your decision →
+        </div>
+      </Link>
+    )}
+
+    {/* Manager: quick links */}
+    {user.role === 'manager' && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link to="/manager/team-leaves" className="bg-white border rounded-xl p-5 hover:shadow-md transition">
+          <p className="text-2xl mb-1">📋</p>
+          <p className="font-semibold text-gray-800">Team Requests</p>
+          <p className="text-sm text-gray-500 mt-1">Review and manage your team's leave requests</p>
+        </Link>
+        <Link to="/availability" className="bg-white border rounded-xl p-5 hover:shadow-md transition">
+          <p className="text-2xl mb-1">📅</p>
+          <p className="font-semibold text-gray-800">Team Availability</p>
+          <p className="text-sm text-gray-500 mt-1">See who's out and plan accordingly</p>
+        </Link>
+      </div>
+    )}
+
+    {/* Employee: Leave Balances */}
+    {user.role === 'employee' && (
       <div>
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Your Leave Balances</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {balances.map(b => {
-            const max  = balanceMax[b.leave_type] || 20;
-            const pct  = Math.round((b.balance / max) * 100);
+            const max = balanceMax[b.leave_type] || 20;
+            const pct = Math.round((b.balance / max) * 100);
             return (
               <div key={b.leave_type} className={`border rounded-xl p-4 ${balanceColors[b.leave_type] || 'bg-gray-50'}`}>
                 <div className="flex justify-between items-center mb-2">
@@ -72,10 +99,7 @@ export default function Dashboard() {
                   <span className="text-xl font-bold">{b.balance}</span>
                 </div>
                 <div className="w-full bg-white bg-opacity-60 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full bg-current opacity-60"
-                    style={{ width: `${pct}%` }}
-                  />
+                  <div className="h-2 rounded-full bg-current opacity-60" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="text-xs mt-1 opacity-70">{b.balance} of {max} days remaining</p>
               </div>
@@ -83,8 +107,10 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+    )}
 
-      {/* Recent Requests */}
+    {/* Employee: Recent Requests */}
+    {user.role === 'employee' && (
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-700">Recent Requests</h2>
@@ -120,6 +146,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }
